@@ -8,7 +8,18 @@ export async function generateMetadata(props: {
   params: Promise<{ page: string }>;
 }): Promise<Metadata> {
   const params = await props.params;
-  const page = await getPage(params.page);
+  let page;
+  
+  try {
+    page = await getPage(params.page);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for page metadata:', params.page);
+      page = null;
+    } else {
+      throw e;
+    }
+  }
 
   if (!page) return notFound();
 
@@ -25,7 +36,18 @@ export async function generateMetadata(props: {
 
 export default async function Page(props: { params: Promise<{ page: string }> }) {
   const params = await props.params;
-  const page = await getPage(params.page);
+  let page;
+  
+  try {
+    page = await getPage(params.page);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for page:', params.page);
+      page = null;
+    } else {
+      throw e;
+    }
+  }
 
   if (!page) return notFound();
 

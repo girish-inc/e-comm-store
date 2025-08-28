@@ -6,7 +6,19 @@ export default async function Image({
 }: {
   params: { collection: string };
 }) {
-  const collection = await getCollection(params.collection);
+  let collection;
+  
+  try {
+    collection = await getCollection(params.collection);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for collection opengraph:', params.collection);
+      collection = { seo: null, title: 'Collection' };
+    } else {
+      throw e;
+    }
+  }
+  
   const title = collection?.seo?.title || collection?.title;
 
   return await OpengraphImage({ title });

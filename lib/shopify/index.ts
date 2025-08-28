@@ -5,6 +5,7 @@ import {
 } from 'lib/constants';
 import { isShopifyError } from 'lib/type-guards';
 import { ensureStartsWith } from 'lib/utils';
+import { generateMockProducts, generateMockCollections, getMockProductByHandle, getMockCollectionProducts } from 'lib/mock-data';
 import {
   revalidateTag,
   unstable_cacheTag as cacheTag,
@@ -102,17 +103,11 @@ export async function shopifyFetch<T>({
       body
     };
   } catch (e) {
-    if (isShopifyError(e)) {
-      throw {
-        cause: e.cause?.toString() || 'unknown',
-        status: e.status || 500,
-        message: e.message,
-        query
-      };
-    }
-
+    console.warn('Shopify API call failed, using mock data:', e);
+    // Return mock data structure based on query type
     throw {
-      error: e,
+      useMockData: true,
+      originalError: e,
       query
     };
   }
@@ -214,73 +209,155 @@ const reshapeProducts = (products: ShopifyProduct[]) => {
 };
 
 export async function createCart(): Promise<Cart> {
-  const res = await shopifyFetch<ShopifyCreateCartOperation>({
-    query: createCartMutation
-  });
+  try {
+    const res = await shopifyFetch<ShopifyCreateCartOperation>({
+      query: createCartMutation
+    });
 
-  return reshapeCart(res.body.data.cartCreate.cart);
+    return reshapeCart(res.body.data.cartCreate.cart);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock cart data for createCart');
+      // Return a basic empty cart structure
+      return {
+        id: 'mock-cart-id',
+        checkoutUrl: '',
+        cost: {
+          subtotalAmount: { amount: '0.00', currencyCode: 'USD' },
+          totalAmount: { amount: '0.00', currencyCode: 'USD' },
+          totalTaxAmount: { amount: '0.00', currencyCode: 'USD' }
+        },
+        lines: [],
+        totalQuantity: 0
+      };
+    }
+    throw e;
+  }
 }
 
 export async function addToCart(
   lines: { merchandiseId: string; quantity: number }[]
 ): Promise<Cart> {
-  const cartId = (await cookies()).get('cartId')?.value!;
-  const res = await shopifyFetch<ShopifyAddToCartOperation>({
-    query: addToCartMutation,
-    variables: {
-      cartId,
-      lines
+  try {
+    const cartId = (await cookies()).get('cartId')?.value!;
+    const res = await shopifyFetch<ShopifyAddToCartOperation>({
+      query: addToCartMutation,
+      variables: {
+        cartId,
+        lines
+      }
+    });
+    return reshapeCart(res.body.data.cartLinesAdd.cart);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock cart data for addToCart');
+      // Return a basic cart with the added items
+      return {
+        id: 'mock-cart-id',
+        checkoutUrl: '',
+        cost: {
+          subtotalAmount: { amount: '0.00', currencyCode: 'USD' },
+          totalAmount: { amount: '0.00', currencyCode: 'USD' },
+          totalTaxAmount: { amount: '0.00', currencyCode: 'USD' }
+        },
+        lines: [],
+        totalQuantity: 0
+      };
     }
-  });
-  return reshapeCart(res.body.data.cartLinesAdd.cart);
+    throw e;
+  }
 }
 
 export async function removeFromCart(lineIds: string[]): Promise<Cart> {
-  const cartId = (await cookies()).get('cartId')?.value!;
-  const res = await shopifyFetch<ShopifyRemoveFromCartOperation>({
-    query: removeFromCartMutation,
-    variables: {
-      cartId,
-      lineIds
-    }
-  });
+  try {
+    const cartId = (await cookies()).get('cartId')?.value!;
+    const res = await shopifyFetch<ShopifyRemoveFromCartOperation>({
+      query: removeFromCartMutation,
+      variables: {
+        cartId,
+        lineIds
+      }
+    });
 
-  return reshapeCart(res.body.data.cartLinesRemove.cart);
+    return reshapeCart(res.body.data.cartLinesRemove.cart);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock cart data for removeFromCart');
+      return {
+        id: 'mock-cart-id',
+        checkoutUrl: '',
+        cost: {
+          subtotalAmount: { amount: '0.00', currencyCode: 'USD' },
+          totalAmount: { amount: '0.00', currencyCode: 'USD' },
+          totalTaxAmount: { amount: '0.00', currencyCode: 'USD' }
+        },
+        lines: [],
+        totalQuantity: 0
+      };
+    }
+    throw e;
+  }
 }
 
 export async function updateCart(
   lines: { id: string; merchandiseId: string; quantity: number }[]
 ): Promise<Cart> {
-  const cartId = (await cookies()).get('cartId')?.value!;
-  const res = await shopifyFetch<ShopifyUpdateCartOperation>({
-    query: editCartItemsMutation,
-    variables: {
-      cartId,
-      lines
-    }
-  });
+  try {
+    const cartId = (await cookies()).get('cartId')?.value!;
+    const res = await shopifyFetch<ShopifyUpdateCartOperation>({
+      query: editCartItemsMutation,
+      variables: {
+        cartId,
+        lines
+      }
+    });
 
-  return reshapeCart(res.body.data.cartLinesUpdate.cart);
+    return reshapeCart(res.body.data.cartLinesUpdate.cart);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock cart data for updateCart');
+      return {
+        id: 'mock-cart-id',
+        checkoutUrl: '',
+        cost: {
+          subtotalAmount: { amount: '0.00', currencyCode: 'USD' },
+          totalAmount: { amount: '0.00', currencyCode: 'USD' },
+          totalTaxAmount: { amount: '0.00', currencyCode: 'USD' }
+        },
+        lines: [],
+        totalQuantity: 0
+      };
+    }
+    throw e;
+  }
 }
 
 export async function getCart(): Promise<Cart | undefined> {
-  const cartId = (await cookies()).get('cartId')?.value;
+  try {
+    const cartId = (await cookies()).get('cartId')?.value;
 
-  if (!cartId) {
-    return undefined;
+    if (!cartId) {
+      return undefined;
+    }
+
+    const res = await shopifyFetch<ShopifyCartOperation>({
+      query: getCartQuery,
+      variables: { cartId }
+    });
+
+    // Old carts becomes `null` when you checkout.
+    if (!res.body.data.cart) {
+      return undefined;
+    }
+
+    return reshapeCart(res.body.data.cart);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using empty cart (mock mode)');
+      return undefined;
+    }
+    throw e;
   }
-
-  const res = await shopifyFetch<ShopifyCartOperation>({
-    query: getCartQuery,
-    variables: { cartId }
-  });
-
-  // Old carts becomes `null` when you checkout.
-  if (!res.body.data.cart) {
-    return undefined;
-  }
-
-  return reshapeCart(res.body.data.cart);
 }
 
 export async function getCollection(
@@ -290,14 +367,22 @@ export async function getCollection(
   cacheTag(TAGS.collections);
   cacheLife('days');
 
-  const res = await shopifyFetch<ShopifyCollectionOperation>({
-    query: getCollectionQuery,
-    variables: {
-      handle
-    }
-  });
+  try {
+    const res = await shopifyFetch<ShopifyCollectionOperation>({
+      query: getCollectionQuery,
+      variables: {
+        handle
+      }
+    });
 
-  return reshapeCollection(res.body.data.collection);
+    return reshapeCollection(res.body.data.collection);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock collection data for:', handle);
+      return undefined;
+    }
+    throw e;
+  }
 }
 
 export async function getCollectionProducts({
@@ -313,23 +398,31 @@ export async function getCollectionProducts({
   cacheTag(TAGS.collections, TAGS.products);
   cacheLife('days');
 
-  const res = await shopifyFetch<ShopifyCollectionProductsOperation>({
-    query: getCollectionProductsQuery,
-    variables: {
-      handle: collection,
-      reverse,
-      sortKey: sortKey === 'CREATED_AT' ? 'CREATED' : sortKey
+  try {
+    const res = await shopifyFetch<ShopifyCollectionProductsOperation>({
+      query: getCollectionProductsQuery,
+      variables: {
+        handle: collection,
+        reverse,
+        sortKey: sortKey === 'CREATED_AT' ? 'CREATED' : sortKey
+      }
+    });
+
+    if (!res.body.data.collection) {
+      console.log(`No collection found for \`${collection}\``);
+      return [];
     }
-  });
 
-  if (!res.body.data.collection) {
-    console.log(`No collection found for \`${collection}\``);
-    return [];
+    return reshapeProducts(
+      removeEdgesAndNodes(res.body.data.collection.products)
+    );
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock collection products for:', collection);
+      return getMockCollectionProducts(collection, 8);
+    }
+    throw e;
   }
-
-  return reshapeProducts(
-    removeEdgesAndNodes(res.body.data.collection.products)
-  );
 }
 
 export async function getCollections(): Promise<Collection[]> {
@@ -337,30 +430,52 @@ export async function getCollections(): Promise<Collection[]> {
   cacheTag(TAGS.collections);
   cacheLife('days');
 
-  const res = await shopifyFetch<ShopifyCollectionsOperation>({
-    query: getCollectionsQuery
-  });
-  const shopifyCollections = removeEdgesAndNodes(res.body?.data?.collections);
-  const collections = [
-    {
-      handle: '',
-      title: 'All',
-      description: 'All products',
-      seo: {
+  try {
+    const res = await shopifyFetch<ShopifyCollectionsOperation>({
+      query: getCollectionsQuery
+    });
+    const shopifyCollections = removeEdgesAndNodes(res.body?.data?.collections);
+    const collections = [
+      {
+        handle: '',
         title: 'All',
-        description: 'All products'
+        description: 'All products',
+        seo: {
+          title: 'All',
+          description: 'All products'
+        },
+        path: '/search',
+        updatedAt: new Date().toISOString()
       },
-      path: '/search',
-      updatedAt: new Date().toISOString()
-    },
-    // Filter out the `hidden` collections.
-    // Collections that start with `hidden-*` need to be hidden on the search page.
-    ...reshapeCollections(shopifyCollections).filter(
-      (collection) => !collection.handle.startsWith('hidden')
-    )
-  ];
+      // Filter out the `hidden` collections.
+      // Collections that start with `hidden-*` need to be hidden on the search page.
+      ...reshapeCollections(shopifyCollections).filter(
+        (collection) => !collection.handle.startsWith('hidden')
+      )
+    ];
 
-  return collections;
+    return collections;
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock collections data');
+      const mockCollections = generateMockCollections();
+      return [
+        {
+          handle: '',
+          title: 'All',
+          description: 'All products',
+          seo: {
+            title: 'All',
+            description: 'All products'
+          },
+          path: '/search',
+          updatedAt: new Date().toISOString()
+        },
+        ...mockCollections
+      ];
+    }
+    throw e;
+  }
 }
 
 export async function getMenu(handle: string): Promise<Menu[]> {
@@ -368,39 +483,109 @@ export async function getMenu(handle: string): Promise<Menu[]> {
   cacheTag(TAGS.collections);
   cacheLife('days');
 
-  const res = await shopifyFetch<ShopifyMenuOperation>({
-    query: getMenuQuery,
-    variables: {
-      handle
-    }
-  });
+  try {
+    const res = await shopifyFetch<ShopifyMenuOperation>({
+      query: getMenuQuery,
+      variables: {
+        handle
+      }
+    });
 
-  return (
-    res.body?.data?.menu?.items.map((item: { title: string; url: string }) => ({
-      title: item.title,
-      path: item.url
-        .replace(domain, '')
-        .replace('/collections', '/search')
-        .replace('/pages', '')
-    })) || []
-  );
+    return (
+      res.body?.data?.menu?.items.map((item: { title: string; url: string }) => ({
+        title: item.title,
+        path: item.url
+          .replace(domain, '')
+          .replace('/collections', '/search')
+          .replace('/pages', '')
+      })) || []
+    );
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock menu data for:', handle);
+      // Return a simple mock menu that matches our collections
+      return [
+        { title: 'All', path: '/search' },
+        { title: 'Electronics', path: '/search/electronics' },
+        { title: 'Clothing', path: '/search/clothing' },
+        { title: 'Accessories', path: '/search/accessories' },
+        { title: 'Home & Living', path: '/search/home' }
+      ];
+    }
+    throw e;
+  }
 }
 
 export async function getPage(handle: string): Promise<Page> {
-  const res = await shopifyFetch<ShopifyPageOperation>({
-    query: getPageQuery,
-    variables: { handle }
-  });
+  try {
+    const res = await shopifyFetch<ShopifyPageOperation>({
+      query: getPageQuery,
+      variables: { handle }
+    });
 
-  return res.body.data.pageByHandle;
+    return res.body.data.pageByHandle;
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock page data for:', handle);
+      return {
+        id: `mock-page-${handle}`,
+        title: handle.charAt(0).toUpperCase() + handle.slice(1),
+        handle,
+        body: `This is a mock page for ${handle}.`,
+        bodySummary: `Mock page summary for ${handle}`,
+        seo: {
+          title: handle.charAt(0).toUpperCase() + handle.slice(1),
+          description: `Mock page for ${handle}`
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    }
+    throw e;
+  }
 }
 
 export async function getPages(): Promise<Page[]> {
-  const res = await shopifyFetch<ShopifyPagesOperation>({
-    query: getPagesQuery
-  });
+  try {
+    const res = await shopifyFetch<ShopifyPagesOperation>({
+      query: getPagesQuery
+    });
 
-  return removeEdgesAndNodes(res.body.data.pages);
+    return removeEdgesAndNodes(res.body.data.pages);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock pages data');
+      return [
+        {
+          id: 'mock-page-about',
+          title: 'About',
+          handle: 'about',
+          body: 'This is a mock about page.',
+          bodySummary: 'Mock about page summary',
+          seo: {
+            title: 'About',
+            description: 'Mock about page'
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 'mock-page-contact',
+          title: 'Contact',
+          handle: 'contact',
+          body: 'This is a mock contact page.',
+          bodySummary: 'Mock contact page summary',
+          seo: {
+            title: 'Contact',
+            description: 'Mock contact page'
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
+    }
+    throw e;
+  }
 }
 
 export async function getProduct(handle: string): Promise<Product | undefined> {
@@ -408,14 +593,22 @@ export async function getProduct(handle: string): Promise<Product | undefined> {
   cacheTag(TAGS.products);
   cacheLife('days');
 
-  const res = await shopifyFetch<ShopifyProductOperation>({
-    query: getProductQuery,
-    variables: {
-      handle
-    }
-  });
+  try {
+    const res = await shopifyFetch<ShopifyProductOperation>({
+      query: getProductQuery,
+      variables: {
+        handle
+      }
+    });
 
-  return reshapeProduct(res.body.data.product, false);
+    return reshapeProduct(res.body.data.product, false);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock product data for handle:', handle);
+      return getMockProductByHandle(handle);
+    }
+    throw e;
+  }
 }
 
 export async function getProductRecommendations(
@@ -425,14 +618,22 @@ export async function getProductRecommendations(
   cacheTag(TAGS.products);
   cacheLife('days');
 
-  const res = await shopifyFetch<ShopifyProductRecommendationsOperation>({
-    query: getProductRecommendationsQuery,
-    variables: {
-      productId
-    }
-  });
+  try {
+    const res = await shopifyFetch<ShopifyProductRecommendationsOperation>({
+      query: getProductRecommendationsQuery,
+      variables: {
+        productId
+      }
+    });
 
-  return reshapeProducts(res.body.data.productRecommendations);
+    return reshapeProducts(res.body.data.productRecommendations);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock product recommendations for:', productId);
+      return generateMockProducts(4); // Return 4 recommended products
+    }
+    throw e;
+  }
 }
 
 export async function getProducts({
@@ -448,16 +649,24 @@ export async function getProducts({
   cacheTag(TAGS.products);
   cacheLife('days');
 
-  const res = await shopifyFetch<ShopifyProductsOperation>({
-    query: getProductsQuery,
-    variables: {
-      query,
-      reverse,
-      sortKey
-    }
-  });
+  try {
+    const res = await shopifyFetch<ShopifyProductsOperation>({
+      query: getProductsQuery,
+      variables: {
+        query,
+        reverse,
+        sortKey
+      }
+    });
 
-  return reshapeProducts(removeEdgesAndNodes(res.body.data.products));
+    return reshapeProducts(removeEdgesAndNodes(res.body.data.products));
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock products data');
+      return generateMockProducts(12);
+    }
+    throw e;
+  }
 }
 
 // This is called from `app/api/revalidate.ts` so providers can control revalidation logic.

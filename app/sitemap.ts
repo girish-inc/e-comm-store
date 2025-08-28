@@ -22,21 +22,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${baseUrl}${collection.path}`,
       lastModified: collection.updatedAt
     }))
-  );
+  ).catch((e: any) => {
+    if (e.useMockData) {
+      console.log('Using mock data for sitemap collections');
+      return [];
+    }
+    throw e;
+  });
 
   const productsPromise = getProducts({}).then((products) =>
     products.map((product) => ({
       url: `${baseUrl}/product/${product.handle}`,
       lastModified: product.updatedAt
     }))
-  );
+  ).catch((e: any) => {
+    if (e.useMockData) {
+      console.log('Using mock data for sitemap products');
+      return [];
+    }
+    throw e;
+  });
 
   const pagesPromise = getPages().then((pages) =>
     pages.map((page) => ({
       url: `${baseUrl}/${page.handle}`,
       lastModified: page.updatedAt
     }))
-  );
+  ).catch((e: any) => {
+    if (e.useMockData) {
+      console.log('Using mock data for sitemap pages');
+      return [];
+    }
+    throw e;
+  });
 
   let fetchedRoutes: Route[] = [];
 
@@ -44,8 +62,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     fetchedRoutes = (
       await Promise.all([collectionsPromise, productsPromise, pagesPromise])
     ).flat();
-  } catch (error) {
-    throw JSON.stringify(error, null, 2);
+  } catch (error: any) {
+    if (error.useMockData) {
+      console.log('Using mock data for sitemap');
+      fetchedRoutes = [];
+    } else {
+      throw JSON.stringify(error, null, 2);
+    }
   }
 
   return [...routesMap, ...fetchedRoutes];

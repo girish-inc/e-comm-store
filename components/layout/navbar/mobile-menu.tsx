@@ -13,6 +13,9 @@ export default function MobileMenu({ menu }: { menu: Menu[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Ensure menu is always an array
+  const safeMenu = menu || [];
   const openMobileMenu = () => setIsOpen(true);
   const closeMobileMenu = () => setIsOpen(false);
 
@@ -76,9 +79,9 @@ export default function MobileMenu({ menu }: { menu: Menu[] }) {
                     <Search />
                   </Suspense>
                 </div>
-                {menu.length ? (
+                {safeMenu.length ? (
                   <ul className="flex w-full flex-col">
-                    {menu.map((item: Menu) => (
+                    {safeMenu.map((item: Menu) => (
                       <li
                         className="py-2 text-xl text-black transition-colors hover:text-neutral-500 dark:text-white"
                         key={item.title}
@@ -89,7 +92,11 @@ export default function MobileMenu({ menu }: { menu: Menu[] }) {
                       </li>
                     ))}
                   </ul>
-                ) : null}
+                ) : (
+                  <div className="py-4 text-neutral-500">
+                    No menu items available
+                  </div>
+                )}
               </div>
             </Dialog.Panel>
           </Transition.Child>

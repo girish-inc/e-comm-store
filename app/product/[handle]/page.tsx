@@ -16,7 +16,18 @@ export async function generateMetadata(props: {
   params: Promise<{ handle: string }>;
 }): Promise<Metadata> {
   const params = await props.params;
-  const product = await getProduct(params.handle);
+  let product;
+  
+  try {
+    product = await getProduct(params.handle);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for product metadata:', params.handle);
+      product = null;
+    } else {
+      throw e;
+    }
+  }
 
   if (!product) return notFound();
 
@@ -51,7 +62,18 @@ export async function generateMetadata(props: {
 
 export default async function ProductPage(props: { params: Promise<{ handle: string }> }) {
   const params = await props.params;
-  const product = await getProduct(params.handle);
+  let product;
+  
+  try {
+    product = await getProduct(params.handle);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for product:', params.handle);
+      product = null;
+    } else {
+      throw e;
+    }
+  }
 
   if (!product) return notFound();
 
@@ -111,7 +133,18 @@ export default async function ProductPage(props: { params: Promise<{ handle: str
 }
 
 async function RelatedProducts({ id }: { id: string }) {
-  const relatedProducts = await getProductRecommendations(id);
+  let relatedProducts;
+  
+  try {
+    relatedProducts = await getProductRecommendations(id);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for product recommendations:', id);
+      relatedProducts = [];
+    } else {
+      throw e;
+    }
+  }
 
   if (!relatedProducts.length) return null;
 

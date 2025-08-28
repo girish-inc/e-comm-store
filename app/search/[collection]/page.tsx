@@ -10,9 +10,26 @@ export async function generateMetadata(props: {
   params: Promise<{ collection: string }>;
 }): Promise<Metadata> {
   const params = await props.params;
-  const collection = await getCollection(params.collection);
+  let collection;
+  
+  try {
+    collection = await getCollection(params.collection);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for collection metadata:', params.collection);
+      collection = null;
+    } else {
+      throw e;
+    }
+  }
 
-  if (!collection) return notFound();
+  if (!collection) {
+    // Return default metadata for mock data scenarios
+    return {
+      title: `${params.collection} Collection`,
+      description: `Browse ${params.collection} products`
+    };
+  }
 
   return {
     title: collection.seo?.title || collection.title,
@@ -29,7 +46,18 @@ export default async function CategoryPage(props: {
   const params = await props.params;
   const { sort } = searchParams as { [key: string]: string };
   const { sortKey, reverse } = sorting.find((item) => item.slug === sort) || defaultSort;
-  const products = await getCollectionProducts({ collection: params.collection, sortKey, reverse });
+  let products;
+  
+  try {
+    products = await getCollectionProducts({ collection: params.collection, sortKey, reverse });
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for collection products:', params.collection);
+      products = [];
+    } else {
+      throw e;
+    }
+  }
 
   return (
     <section>

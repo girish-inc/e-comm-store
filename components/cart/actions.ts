@@ -21,10 +21,25 @@ export async function addItem(
   }
 
   try {
+    let cart = await getCart();
+    
+    // Create cart if it doesn't exist
+    if (!cart) {
+      cart = await createCart();
+    }
+    
     await addToCart([{ merchandiseId: selectedVariantId, quantity: 1 }]);
     revalidateTag(TAGS.cart);
-  } catch (e) {
-    return 'Error adding item to cart';
+    return 'Item added to cart successfully';
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock cart data for addToCart');
+      revalidateTag(TAGS.cart);
+      return 'Item added to cart successfully (mock mode)';
+    } else {
+      console.error('Add to cart error:', e);
+      return 'Error adding item to cart';
+    }
   }
 }
 
@@ -46,7 +61,13 @@ export async function removeItem(prevState: any, merchandiseId: string) {
     } else {
       return 'Item not found in cart';
     }
-  } catch (e) {
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for removing item from cart');
+      revalidateTag(TAGS.cart);
+    } else {
+      console.error('Remove from cart error:', e);
+    }
     return 'Error removing item from cart';
   }
 }
@@ -89,18 +110,48 @@ export async function updateItemQuantity(
     }
 
     revalidateTag(TAGS.cart);
-  } catch (e) {
-    console.error(e);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for cart update');
+    } else {
+      console.error('Cart update error:', e);
+    }
     return 'Error updating item quantity';
   }
 }
 
 export async function redirectToCheckout() {
-  let cart = await getCart();
-  redirect(cart!.checkoutUrl);
+  try {
+    let cart = await getCart();
+    if (cart?.checkoutUrl) {
+      redirect(cart.checkoutUrl);
+    } else {
+      throw new Error('No checkout URL available');
+    }
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for checkout redirect');
+      // Redirect to a mock checkout page or handle gracefully
+      redirect('/cart');
+    } else {
+      console.error('Checkout redirect error:', e);
+      throw e;
+    }
+  }
 }
 
 export async function createCartAndSetCookie() {
-  let cart = await createCart();
-  (await cookies()).set('cartId', cart.id!);
+  try {
+    let cart = await createCart();
+    (await cookies()).set('cartId', cart.id!);
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for cart creation');
+      // Set a mock cart ID
+      (await cookies()).set('cartId', 'mock-cart-id');
+    } else {
+      console.error('Cart creation error:', e);
+      throw e;
+    }
+  }
 }

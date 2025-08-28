@@ -65,7 +65,7 @@ export function Gallery({ images }: { images: { src: string; altText: string }[]
             const isActive = index === imageIndex;
 
             return (
-              <li key={image.src} className="h-20 w-20">
+              <li key={index} className="h-20 w-20">
                 <button
                   formAction={() => {
                     const newState = updateImage(index.toString());

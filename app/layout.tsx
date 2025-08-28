@@ -28,7 +28,13 @@ export default async function RootLayout({
   children: ReactNode;
 }) {
   // Don't await the fetch, pass the Promise to the context provider
-  const cart = getCart();
+  const cart = getCart().catch((e: any) => {
+    if (e.useMockData) {
+      console.log('Using mock data for cart in layout');
+      return undefined;
+    }
+    throw e;
+  });
 
   return (
     <html lang="en" className={GeistSans.variable}>

@@ -15,7 +15,18 @@ export default async function SearchPage(props: {
   const { sort, q: searchValue } = searchParams as { [key: string]: string };
   const { sortKey, reverse } = sorting.find((item) => item.slug === sort) || defaultSort;
 
-  const products = await getProducts({ sortKey, reverse, query: searchValue });
+let products: any[] = [];
+  
+  try {
+    products = await getProducts({ sortKey, reverse, query: searchValue });
+  } catch (e: any) {
+    if (e.useMockData) {
+      console.log('Using mock data for search products');
+      products = [];
+    } else {
+      throw e;
+    }
+  }
   const resultsText = products.length > 1 ? 'results' : 'result';
 
   return (
