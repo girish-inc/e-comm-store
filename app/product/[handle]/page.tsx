@@ -133,7 +133,7 @@ export default async function ProductPage(props: { params: Promise<{ handle: str
 }
 
 async function RelatedProducts({ id }: { id: string }) {
-  let relatedProducts;
+  let relatedProducts: any[] = [];
   
   try {
     relatedProducts = await getProductRecommendations(id);
